@@ -1,4 +1,4 @@
-import 'package:youtube_api/models/videos_model.dart';
+import 'package:youtube_api/domain/models/videos_model.dart';
 
 class Channel {
 
