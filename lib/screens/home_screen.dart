@@ -1,27 +1,35 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:youtube_api/data/services/api_service.dart';
+import 'package:youtube_api/domain/bloc/channel_bloc.dart';
+import 'package:youtube_api/domain/bloc/channel_event.dart';
+import 'package:youtube_api/domain/bloc/channel_state.dart';
 import 'package:youtube_api/domain/models/channel_model.dart';
 import 'package:youtube_api/domain/models/videos_model.dart';
+import 'package:youtube_api/domain/repository/youtube_repository.dart';
 import 'package:youtube_api/screens/video_screen.dart';
+import 'package:youtube_api/utilities/constants.dart';
 
-class HomeScreen extends StatefulWidget {
+class Home extends StatelessWidget {
+  final YoutubeRepository youtubeRepository
+  = new YoutubeRepository(apiService: ApiService.instance);
   @override
-  State<StatefulWidget> createState() => _HomeScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => ChannelBloc(youtubeRepository: youtubeRepository),
+      child: HomeScreen(),
+    );
+  }
+
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  Channel _channel;
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initChannel();
-  }
+class HomeScreen extends StatelessWidget{
 
   @override
   Widget build(BuildContext context) {
-    _buildProfileInfo() {
+    _buildProfileInfo(Channel channel) {
       return Container(
         margin: EdgeInsets.all(20.0),
         padding: EdgeInsets.all(20.0),
@@ -38,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
             CircleAvatar(
               backgroundColor: Colors.white,
               radius: 35.0,
-              backgroundImage: NetworkImage(_channel.profilePictureUrl),
+              backgroundImage: NetworkImage(channel.profilePictureUrl),
             ),
             SizedBox(
               width: 12.0,
@@ -49,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    _channel.title,
+                    channel.title,
                     style: TextStyle(
                         color: Colors.black,
                         fontSize: 20.0,
@@ -57,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    '${_channel.subscriberCount} subscriber',
+                    '${channel.subscriberCount} subscriber',
                     style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 16.0,
@@ -108,60 +116,56 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    _loadMoreVideos() async {
-      _isLoading = true;
-      List<Video> moreVideos = await ApiService.instance
-          .fetchVideosFromPlayList(playlistId: _channel.uploadPlaylistId);
-      List<Video> allVideos = _channel.videos..addAll(moreVideos);
-      setState(() {
-        _channel.videos = allVideos;
-      });
-
-      _isLoading = false;
+    _loadMoreVideos(Channel channel) async {
+      BlocProvider.of<ChannelBloc>(context).add(GetMoreVideos(uploadPlaylistId: channel.uploadPlaylistId));
     }
 
+    _buildList(Channel channel) {
+      return NotificationListener<ScrollNotification>(
+        onNotification: (ScrollNotification scrollDetails) {
+          if (channel.videos.length != int.parse(channel.videoCount) &&
+              scrollDetails.metrics.pixels ==
+                  scrollDetails.metrics.maxScrollExtent) {
+           // _loadMoreVideos(channel);
+          }
+          return false;
+        },
+        child: ListView.builder(itemCount: 1 + channel.videos.length,
+          itemBuilder: (BuildContext context, int index) {
+            if (index == 0) {
+              return _buildProfileInfo(channel);
+            }
+            Video video = channel.videos[index - 1];
+            return _buildVideo(video);
+          },
+        ),);
+    }
+    
+    BlocProvider.of<ChannelBloc>(context).add(GetYoutubeChannel(channelId: CHANNEL_ID));
     return Scaffold(
       appBar: AppBar(
-        title: Text('Youtube Channel'),
+        title: Text("Youtube Channel"),
       ),
-      body: _channel != null
-          ? NotificationListener<ScrollNotification>(
-              onNotification: (ScrollNotification scrollDetials) {
-                if (!_isLoading &&
-                    _channel.videos.length != int.parse(_channel.videoCount) &&
-                    scrollDetials.metrics.pixels ==
-                        scrollDetials.metrics.maxScrollExtent) {
-                  // ignore: missing_return
-                  _loadMoreVideos();
-                }
-                return false;
-              },
-              child: ListView.builder(
-                itemCount: 1 + _channel.videos.length,
-                itemBuilder: (BuildContext context, int index) {
-                  if (index == 0) {
-                    return _buildProfileInfo();
-                  }
-                  Video video = _channel.videos[index - 1];
-                  return _buildVideo(video);
-                },
+      body: BlocBuilder<ChannelBloc, ChannelState>(
+        builder: (context, state){
+          if(state is LoadingState){
+            return Center(
+              child: CircularProgressIndicator(),
+            );
+          } else if(state is ChannelSuccessState) {
+            return Center(
+              child: _buildList(state.channel),
+            );
+          }else{
+            return Center(
+              child: Text(
+                state.toString()
               ),
-            )
-          : Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).primaryColor,
-                ),
-              ),
-            ),
-    );
-  }
+            );
+          }
+        },
 
-  _initChannel() async {
-    Channel channel = await ApiService.instance
-        .fetchChannel(channelId: 'UC6Dy0rQ6zDnQuHQ1EeErGUA');
-    setState(() {
-      _channel = channel;
-    });
+      ),
+    );
   }
 }
