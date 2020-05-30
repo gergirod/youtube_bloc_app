@@ -1,4 +1,4 @@
-# youtube_bloc_api
+# youtube_bloc_app
 
 <img src=https://github.com/gergirod/youtube_bloc_app/blob/master/assets/image_1.jpg height=300 /> <img src=https://github.com/gergirod/youtube_bloc_app/blob/master/assets/image_2.jpg height=300 />
 
