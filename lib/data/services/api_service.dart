@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:youtube_api/domain/models/channel_model.dart';
 import 'package:youtube_api/domain/models/videos_model.dart';
-import 'package:youtube_api/utilities/keys.dart';
+import 'package:youtube_api/utilities/constants.dart';
 
 class ApiService {
   ApiService._instantiate();
@@ -47,21 +47,19 @@ class ApiService {
   }
 
   Future<List<Video>> fetchVideosFromPlayList({String playlistId}) async {
-    Map<String, String> paramentes = {
+    Map<String, String> parameters = {
       'part': 'snippet',
       'playlistId': playlistId,
-      'maxResults': '8',
+      'maxResults': '20',
       'pagetoken': _nextPageToken,
       'key': API_KEY
     };
 
-    Uri uri = Uri.https(_baseUrl, 'youtube/v3/playlistItems', paramentes);
+    Uri uri = Uri.https(_baseUrl, 'youtube/v3/playlistItems', parameters);
 
     Map<String, String> headers = {
       HttpHeaders.contentTypeHeader: 'application/json',
     };
-
-    //Get Videos
 
     var response = await http.get(uri, headers: headers);
 
